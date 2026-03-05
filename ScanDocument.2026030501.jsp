@@ -1443,6 +1443,102 @@
         [dir="rtl"] .custom-dropdown-item {
             text-align: right;
         }
+
+        /* Multi-Select with Chips Styles */
+        .multi-select-input {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.375rem;
+            padding: 0.375rem 0.75rem;
+            min-height: 2.5rem;
+            width: 100%;
+            align-items: center;
+        }
+
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background-color: #dbeafe;
+            color: #0284c7;
+            padding: 0.375rem 0.75rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            white-space: nowrap;
+        }
+
+        .chip-remove {
+            cursor: pointer;
+            font-weight: bold;
+            user-select: none;
+            transition: opacity 0.2s ease;
+        }
+
+        .chip-remove:hover {
+            opacity: 0.6;
+        }
+
+        .multi-select-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            list-style: none;
+            margin: 0.25rem 0 0 0;
+            padding: 0;
+            display: none;
+            max-height: 250px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .multi-select-list.open {
+            display: block;
+        }
+
+        .multi-select-item {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .multi-select-item:hover {
+            background-color: #f3f4f6;
+        }
+
+        .multi-select-item input[type="checkbox"] {
+            cursor: pointer;
+        }
+
+        .multi-select-item.selected {
+            background-color: #f0f9ff;
+        }
+
+        .multi-select-item:last-child {
+            border-bottom: none;
+        }
+
+        /* RTL Support for Multi-Select */
+        [dir="rtl"] .multi-select-list {
+            right: 0;
+            left: 0;
+        }
+
+        [dir="rtl"] .multi-select-item {
+            flex-direction: row-reverse;
+        }
+
+        [dir="rtl"] .chip {
+            flex-direction: row-reverse;
+        }
     </style>
 
 		<title>
@@ -1547,12 +1643,25 @@
 						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 space-x-2">
 							<!-- Show UI , Auto Feeder , Duplex -->
 							<div class="float-wrapper relative">								
-								<select id="scanAs" name="autoFeeder" class="input input-md" multiple size="1">
-									<option value="autoFeeders"><fmt:message key="label.autoFeeders" /></option>
-									<option value="showUI"><fmt:message key="label.showUI" /></option>
-									<option value="bothSides"><fmt:message key="label.bothSides" /></option>
-								</select>
-								<label for="scanAs" class="label float-label"><fmt:message key="label.scanAs" /></label>
+								<div id="scanAsWrapper" class="multi-select-input input input-md" tabindex="0">
+									<!-- Chips will be inserted here by JavaScript -->
+								</div>
+								<input id="scanAsHidden" type="hidden" name="autoFeeder">
+								<ul id="scanAsList" class="multi-select-list">
+									<li class="multi-select-item" data-value="autoFeeders">
+										<input type="checkbox" id="scanAs-autoFeeders" value="autoFeeders">
+										<label for="scanAs-autoFeeders"><fmt:message key="label.autoFeeders" /></label>
+									</li>
+									<li class="multi-select-item" data-value="showUI">
+										<input type="checkbox" id="scanAs-showUI" value="showUI">
+										<label for="scanAs-showUI"><fmt:message key="label.showUI" /></label>
+									</li>
+									<li class="multi-select-item" data-value="bothSides">
+										<input type="checkbox" id="scanAs-bothSides" value="bothSides">
+										<label for="scanAs-bothSides"><fmt:message key="label.bothSides" /></label>
+									</li>
+								</ul>
+								<label for="scanAsWrapper" class="label float-label"><fmt:message key="label.scanAs" /></label>
 							</div>
 
 							<!-- Save As -->
@@ -1782,6 +1891,106 @@
 				}
 				console.log("personRequest.value", personRequest.value)
 				console.groupEnd();
+			});
+			
+			// Multi-Select Handler for scanAs
+			const scanAsWrapper = document.getElementById("scanAsWrapper");
+			const scanAsHidden = document.getElementById("scanAsHidden");
+			const scanAsList = document.getElementById("scanAsList");
+			const scanAsCheckboxes = scanAsList.querySelectorAll("input[type='checkbox']");
+			const scanAsItems = scanAsList.querySelectorAll(".multi-select-item");
+
+			// Function to update chips display
+			function updateScanAsChips() {
+				const selectedValues = [];
+				scanAsCheckboxes.forEach(checkbox => {
+					if (checkbox.checked) {
+						selectedValues.push(checkbox.value);
+					}
+				});
+
+				// Update hidden input with selected values
+				scanAsHidden.value = selectedValues.join(",");
+
+				// Clear existing chips
+				const existingChips = scanAsWrapper.querySelectorAll(".chip");
+				existingChips.forEach(chip => chip.remove());
+
+				// Add new chips
+				selectedValues.forEach(value => {
+					const checkbox = document.getElementById(`scanAs-${value}`);
+					const label = checkbox.nextElementSibling;
+					const labelText = label.textContent;
+
+					const chip = document.createElement("div");
+					chip.className = "chip";
+					chip.innerHTML = `
+						${labelText}
+						<span class="chip-remove" data-value="${value}">×</span>
+					`;
+
+					// Add remove handler
+					chip.querySelector(".chip-remove").addEventListener("click", function(e) {
+						e.stopPropagation();
+						checkbox.checked = false;
+						updateScanAsChips();
+						// Update item UI
+						scanAsItems.forEach(item => {
+							if (item.getAttribute("data-value") === value) {
+								item.classList.remove("selected");
+							}
+						});
+					});
+
+					scanAsWrapper.appendChild(chip);
+				});
+			}
+
+			// Handle checkbox changes
+			scanAsCheckboxes.forEach(checkbox => {
+				checkbox.addEventListener("change", function() {
+					const itemValue = this.value;
+					const item = scanAsList.querySelector(`[data-value="${itemValue}"]`);
+					
+					if (this.checked) {
+						item.classList.add("selected");
+					} else {
+						item.classList.remove("selected");
+					}
+					
+					updateScanAsChips();
+				});
+			});
+
+			// Show list on focus
+			scanAsWrapper.addEventListener("focus", function() {
+				scanAsList.classList.add("open");
+			});
+
+			// Hide list on blur
+			scanAsWrapper.addEventListener("blur", function(e) {
+				// Check if focus is going to the list or checkbox
+				setTimeout(() => {
+					if (!scanAsList.contains(document.activeElement) && !scanAsWrapper.contains(document.activeElement)) {
+						scanAsList.classList.remove("open");
+					}
+				}, 100);
+			});
+
+			// Prevent blur when clicking on list items
+			scanAsList.addEventListener("mousedown", function(e) {
+				e.preventDefault();
+				if (e.target.tagName === "INPUT") {
+					e.target.checked = !e.target.checked;
+					e.target.dispatchEvent(new Event("change", { bubbles: true }));
+				}
+			});
+
+			// Close list when clicking outside
+			document.addEventListener("click", function(e) {
+				if (!scanAsWrapper.contains(e.target) && !scanAsList.contains(e.target)) {
+					scanAsList.classList.remove("open");
+				}
 			});
 			
 			function getDocTypeLabel(){

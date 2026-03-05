@@ -1379,6 +1379,70 @@
         .space-y-6>*+* {
             margin-top: 1.5rem;
         }
+
+        /* Custom Dropdown Styles */
+        .custom-dropdown {
+            position: relative;
+            width: 100%;
+        }
+
+        .custom-dropdown-input {
+            width: 100%;
+            cursor: pointer;
+        }
+
+        .custom-dropdown-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            list-style: none;
+            margin: 0.25rem 0 0 0;
+            padding: 0;
+            display: none;
+            max-height: 250px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .custom-dropdown-list.open {
+            display: block;
+        }
+
+        .custom-dropdown-item {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .custom-dropdown-item:hover {
+            background-color: #f3f4f6;
+        }
+
+        .custom-dropdown-item.selected {
+            background-color: #dbeafe;
+            color: #0284c7;
+            font-weight: 500;
+        }
+
+        .custom-dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        /* RTL Support for Dropdown */
+        [dir="rtl"] .custom-dropdown-list {
+            right: 0;
+            left: 0;
+        }
+
+        [dir="rtl"] .custom-dropdown-item {
+            text-align: right;
+        }
     </style>
 
 		<title>
@@ -1423,16 +1487,15 @@
 						<!-- document type -->
 						<div class="float-wrapper relative">
 							<!-- id="selectDocTypeList" -->
-							<input id="docTypeList" list="docTypeDL" placeholder="" class="input input-md"  onchange="setDocName(this);" />
+							<input id="docTypeList" type="text" placeholder="" class="input input-md custom-dropdown-input"  onchange="setDocName(this);" readonly />
 							<input id="docType" type="hidden" name="docType" value="${docType.key}">
-							<datalist id="docTypeDL" dir="rtl">
+							<ul id="docTypeDL" class="custom-dropdown-list" dir="rtl">
 								<c:forEach var="docType" items="${sessionScope.docTypes}">						 
 									<c:if test="${!docType.isParent}">
-										<!-- <option value="${docType.key}" ${docType.key == sessionScope.documentType ? 'selected="selected"' : ''}>${docType.value}</option> -->
-										<option dir="ltr" value="${docType.value}" data-id="${docType.key}"></option>
+										<li class="custom-dropdown-item" data-value="${docType.value}" data-id="${docType.key}" dir="ltr">${docType.value}</li>
 									</c:if>
 								</c:forEach>
-							</datalist>
+							</ul>
 							<label for="docTypeList" class="label float-label"><fmt:message key="label.selectDocType" /></label>
 						</div>
 						
@@ -1445,13 +1508,13 @@
 						<!-- Request -->
 						<div class="float-wrapper relative">														
 							<!-- id="selectRequestList" -->
-							<input id="personRequestList" list="personRequestDataList" placeholder="" class="input input-md" />
+							<input id="personRequestList" type="text" placeholder="" class="input input-md custom-dropdown-input" readonly />
 							<input id="personRequest" type="hidden" name="selectRequestList">
-							<datalist id="personRequestDataList" dir="rtl">								
+							<ul id="personRequestDataList" class="custom-dropdown-list" dir="rtl">								
 								<c:forEach var="personRequest" items="${sessionScope.personRequests}">
-									<option dir="rtl" value="${personRequest.value}" data-id="${personRequest.key}"></option>
+									<li class="custom-dropdown-item" data-value="${personRequest.value}" data-id="${personRequest.key}" dir="rtl">${personRequest.value}</li>
 								</c:forEach>
-							</datalist>
+							</ul>
 							<label for="personRequestList" class="label float-label" ><fmt:message key="label.selectRequest" /></label>
 						</div>
 
@@ -1630,20 +1693,69 @@
 			const docTypeInput = document.getElementById("docType");			
 			const docTypeList = document.getElementById("docTypeList");
 			const docTypeDL = document.getElementById("docTypeDL");
+			
+			const personRequest = document.getElementById("personRequest");
+			const personRequestsList = document.getElementById("personRequestList");
+			const personRequestDL = document.getElementById("personRequestDataList");
 
-			docTypeList.addEventListener("input", function(){
-				console.group("docTypeInput.value", docTypeInput.value);
-				console.log("docTypeDL", docTypeDL, docTypeDL.options.length);
-				docTypeInput.vaue = "";
+			// Custom Dropdown Handler Function
+			function setupCustomDropdown(inputElement, dropdownList) {
+				// Click handler for input to toggle dropdown
+				inputElement.addEventListener("click", function(e) {
+					e.stopPropagation();
+					dropdownList.classList.toggle("open");
+				});
+
+				// Handle dropdown item selection
+				const items = dropdownList.querySelectorAll(".custom-dropdown-item");
+				items.forEach(item => {
+					item.addEventListener("click", function(e) {
+						e.stopPropagation();
+						
+						// Remove previous selection
+						items.forEach(i => i.classList.remove("selected"));
+						
+						// Mark current as selected
+						this.classList.add("selected");
+						
+						// Set input value
+						inputElement.value = this.getAttribute("data-value");
+						
+						// Close dropdown
+						dropdownList.classList.remove("open");
+						
+						// Trigger change event
+						inputElement.dispatchEvent(new Event("change", { bubbles: true }));
+					});
+				});
+
+				// Close dropdown when clicking outside
+				document.addEventListener("click", function(e) {
+					if (!inputElement.contains(e.target) && !dropdownList.contains(e.target)) {
+						dropdownList.classList.remove("open");
+					}
+				});
+			}
+
+			// Initialize custom dropdowns
+			setupCustomDropdown(docTypeList, docTypeDL);
+			setupCustomDropdown(personRequestsList, personRequestDL);
+
+			// Handle docType selection
+			docTypeList.addEventListener("change", function(){
+				console.group("docTypeList change event");
+				docTypeInput.value = "";
 
 				const selectedValue = this.value;
 				console.log("selectedValue", selectedValue);
-				for(let i = 0; i < docTypeDL.options.length; i++){
-					const selectedOption = docTypeDL.options[i];
+				
+				const items = docTypeDL.querySelectorAll(".custom-dropdown-item");
+				for(let i = 0; i < items.length; i++){
+					const selectedItem = items[i];
 					
-					if(selectedOption.value == selectedValue){
-						console.log("selectedOption", selectedOption);
-						docTypeInput.value = selectedOption.getAttribute("data-id");
+					if(selectedItem.getAttribute("data-value") == selectedValue){
+						console.log("selectedItem", selectedItem);
+						docTypeInput.value = selectedItem.getAttribute("data-id");
 						break;
 					}
 				}
@@ -1652,20 +1764,19 @@
 				console.groupEnd();
 			})
 			
-			
-			const personRequest = document.getElementById("personRequest");
-			const personRequestsList = document.getElementById("personRequestList");
-			const personRequestDL = document.getElementById("personRequestDataList");
-			
-			personRequestList.addEventListener("input", function(){
-				console.group("personRequestList.addEventListener(input)", personRequest.value)
-				const selectedValue = personRequestList.value;
-				for(let i = 0; i < personRequestDL.options.length; i++){
-					const option = personRequestDL.options[i];
+			// Handle personRequest selection
+			personRequestsList.addEventListener("change", function(){
+				console.group("personRequestList change event");
+				const selectedValue = personRequestsList.value;
+				console.log("selectedValue", selectedValue);
+				
+				const items = personRequestDL.querySelectorAll(".custom-dropdown-item");
+				for(let i = 0; i < items.length; i++){
+					const item = items[i];
 					
-					if(option.value == selectedValue){
-						// console.log("value", option);
-						personRequest.value = option.getAttribute("data-id");
+					if(item.getAttribute("data-value") == selectedValue){
+						console.log("value", item);
+						personRequest.value = item.getAttribute("data-id");
 						break;
 					}
 				}
